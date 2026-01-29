@@ -5,10 +5,10 @@ toggle.addEventListener("click", () => menu.classList.toggle("show"));
 
 // Active link on scroll
 const sections = ["about", "skills", "experience", "projects", "contact"].map(
-  (id) => document.getElementById(id)
+  (id) => document.getElementById(id),
 );
 const links = Array.from(document.querySelectorAll(".menu a")).filter((a) =>
-  a.getAttribute("href").startsWith("#")
+  a.getAttribute("href").startsWith("#"),
 );
 const yEl = document.getElementById("y");
 yEl.textContent = new Date().getFullYear();
@@ -20,7 +20,7 @@ function setActive() {
     if (sec.offsetTop <= pos) current = sec.id;
   });
   links.forEach((a) =>
-    a.classList.toggle("active", a.getAttribute("href") === "#" + current)
+    a.classList.toggle("active", a.getAttribute("href") === "#" + current),
   );
 }
 setActive();
@@ -36,7 +36,7 @@ const observer = new IntersectionObserver(
       }
     });
   },
-  { threshold: 0.12 }
+  { threshold: 0.12 },
 );
 document
   .querySelectorAll("[data-reveal]")
@@ -57,19 +57,52 @@ filterBtns.forEach((btn) => {
   });
 });
 
-// Fake form submit
-function fakeSubmit() {
-  const n = document.getElementById("name").value.trim();
-  const e = document.getElementById("email").value.trim();
-  const m = document.getElementById("message").value.trim();
+// Handle contact form submit via Formspree
+async function handleContactSubmit(form) {
+  const n = form.querySelector("#name").value.trim();
+  const e = form.querySelector("#email").value.trim();
+  const m = form.querySelector("#message").value.trim();
   const note = document.getElementById("formNote");
+  const submitBtn = document.getElementById("contactSubmit");
   if (!n || !e || !m) {
     note.textContent = "Vui lòng điền đầy đủ thông tin.";
     return;
   }
-  note.textContent = "Đã gửi! Cảm ơn bạn, mình sẽ phản hồi sớm.";
-  setTimeout(() => {
-    note.textContent = "Mình sẽ phản hồi trong 24h làm việc.";
-  }, 4000);
-  // TODO: Hook email service / backend here.
+  const formspreeId = form.dataset.formspree;
+  if (!formspreeId || formspreeId === "YOUR_FORMSPREE_ID") {
+    note.innerHTML =
+      'Chưa cấu hình endpoint. Đăng ký miễn phí tại <a href="https://formspree.io" target="_blank" rel="noopener">Formspree</a> và thay `data-formspree` bằng mã của bạn.';
+    return;
+  }
+  submitBtn.disabled = true;
+  note.textContent = "Đang gửi...";
+  try {
+    const res = await fetch(`https://formspree.io/f/${formspreeId}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: n,
+        email: e,
+        message: m,
+        _subject: `${n} — Yêu cầu hợp tác từ portfolio`,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      note.textContent = "Đã gửi! Cảm ơn bạn, mình sẽ phản hồi sớm.";
+      form.reset();
+    } else {
+      note.textContent = data.error || "Có lỗi khi gửi. Vui lòng thử lại sau.";
+    }
+  } catch (err) {
+    note.textContent = "Lỗi mạng. Vui lòng kiểm tra kết nối.";
+  } finally {
+    submitBtn.disabled = false;
+    setTimeout(() => {
+      note.textContent = "Mình sẽ phản hồi trong 24h làm việc.";
+    }, 4000);
+  }
 }
